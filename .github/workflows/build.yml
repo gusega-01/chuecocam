@@ -34,44 +34,33 @@ jobs:
           cat > patch_android.py << 'PYEOF'
           import os, re
 
-          # 1. Forzar compileSdk 36 globalmente detectando .kts vs Groovy
-          root_gradle = 'android/build.gradle.kts' if os.path.exists('android/build.gradle.kts') else 'android/build.gradle'
-          if os.path.exists(root_gradle):
-              with open(root_gradle, 'r') as f:
-                  r_content = f.read()
+          # 1. Definir compileSdkVersion como variable ext del root, ANTES de que los subproyectos evalúen
+root_gradle = 'android/build.gradle.kts' if os.path.exists('android/build.gradle.kts') else 'android/build.gradle'
+if os.path.exists(root_gradle):
+    with open(root_gradle, 'r') as f:
+        r_content = f.read()
 
-              if 'subprojects' not in r_content:
-                  if root_gradle.endswith('.kts'):
-                      subproject_patch = """
-          subprojects {
-              afterEvaluate {
-                  extensions.findByName("android")?.let { ext ->
-                      try {
-                          val method = ext.javaClass.getMethod("compileSdkVersion", Int::class.javaPrimitiveType)
-                          method.invoke(ext, 36)
-                      } catch (e: Exception) {
-                          // Ignorar si el subproyecto no expone este método
-                      }
-                  }
-              }
-          }
-          """
-                  else:
-                      subproject_patch = """
-          subprojects {
-              afterEvaluate { project ->
-                  if (project.hasProperty('android')) {
-                      project.android {
-                          compileSdkVersion 36
-                      }
-                  }
-              }
-          }
-          """
-                  with open(root_gradle, 'a') as f:
-                      f.write(subproject_patch)
-
-          # 2. Patch del app/build.gradle o app/build.gradle.kts
+    if 'MARKER_EXT_SDK' not in r_content:
+        if root_gradle.endswith('.kts'):
+            ext_patch = """
+// MARKER_EXT_SDK
+extra["compileSdkVersion"] = 36
+extra["targetSdkVersion"] = 36
+extra["minSdkVersion"] = 21
+"""
+        else:
+            ext_patch = """
+// MARKER_EXT_SDK
+ext {
+    compileSdkVersion = 36
+    targetSdkVersion = 36
+    minSdkVersion = 21
+}
+"""
+       
+        with open(root_gradle, 'w') as f:
+            f.write(ext_patch + '\n' + r_content)
+                 
           gradle_file = 'android/app/build.gradle.kts' if os.path.exists('android/app/build.gradle.kts') else 'android/app/build.gradle'
           if os.path.exists(gradle_file):
               with open(gradle_file, 'r') as f:

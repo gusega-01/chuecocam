@@ -24,14 +24,23 @@ jobs:
           flutter-version: '3.24.0'
           channel: 'stable'
 
-      - name: Rebuild Android Project & Build APK
+      - name: Rebuild Android Project & Configure Permissions
         run: |
           cd flutter_app
           flutter create . --platforms=android
+          
+          # Inyectar permisos en AndroidManifest.xml
+          MANIFEST_FILE="android/app/src/main/AndroidManifest.xml"
+          PERMISSIONS='<uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.CAMERA"/>\n    <uses-permission android:name="android.permission.RECORD_AUDIO"/>\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>\n    <uses-permission android:name="android.permission.WAKE_LOCK"/>\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>\n    <uses-feature android:name="android.hardware.camera" android:required="true"/>\n    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>'
+          
+          sed -i "s|<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">|<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">\n    $PERMISSIONS|g" $MANIFEST_FILE
+
+      - name: Build APK
+        run: |
+          cd flutter_app
           flutter pub upgrade
           flutter pub get
           flutter build apk --release --no-tree-shake-icons
-        continue-on-error: false
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4

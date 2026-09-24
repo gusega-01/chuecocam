@@ -23,15 +23,24 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Rebuild Android Project & Configure Permissions
+      - name: Generate Android Project & Fix SDK Version
         run: |
           cd flutter_app
-          flutter create . --platforms=android --template=app
+          flutter create . --platforms=android --org com.chuecocam
           
+          # Forzar compileSdk y minSdk para compatibilidad con mobile_scanner y WebRTC
+          BUILD_GRADLE="android/app/build.gradle"
+          if [ -f "$BUILD_GRADLE" ]; then
+            sed -i 's/compileSdkVersion.*/compileSdkVersion 34/g' $BUILD_GRADLE
+            sed -i 's/minSdkVersion.*/minSdkVersion 21/g' $BUILD_GRADLE
+            sed -i 's/targetSdkVersion.*/targetSdkVersion 34/g' $BUILD_GRADLE
+          fi
+
+          # Inyectar permisos en AndroidManifest.xml
           MANIFEST_FILE="android/app/src/main/AndroidManifest.xml"
           PERMISSIONS='<uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.CAMERA"/>\n    <uses-permission android:name="android.permission.RECORD_AUDIO"/>\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>\n    <uses-permission android:name="android.permission.WAKE_LOCK"/>\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>\n    <uses-feature android:name="android.hardware.camera" android:required="true"/>\n    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>'
           
-          sed -i "s|<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">|<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">\n    $PERMISSIONS|g" $MANIFEST_FILE
+          sed -i "s|<manifest.*>|<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">\n    $PERMISSIONS|g" $MANIFEST_FILE
 
       - name: Build APK
         run: |

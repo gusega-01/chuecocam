@@ -23,53 +23,20 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Rebuild Android Project & Patch Config
+      - name: Rebuild Android Project
         run: |
           cd flutter_app
           flutter create . --platforms=android --org com.chuecocam
 
-          python3 -c '
-          import os, re
+      - name: Update Gradle Android Config
+        run: |
+          cd flutter_app
+          python3 -c "import glob, re; [open(f, 'w').write(re.sub(r'(compileSdk|targetSdk)\s*(=|\s)\s*\d+', r'\1 \2 34', re.sub(r'minSdk\s*(=|\s)\s*\d+', 'minSdk 21', open(f).read()))) for f in glob.glob('android/app/build.gradle*')]"
 
-          # Patch build.gradle or build.gradle.kts
-          gradle_files = ["android/app/build.gradle.kts", "android/app/build.gradle"]
-          for g_file in gradle_files:
-              if os.path.exists(g_file):
-                  with open(g_file, "r") as f:
-                      content = f.read()
-                  
-                  content = re.sub(r"compileSdk\s*=.*", "compileSdk = 34", content)
-                  content = re.sub(r"minSdk\s*=.*", "minSdk = 21", content)
-                  content = re.sub(r"targetSdk\s*=.*", "targetSdk = 34", content)
-                  
-                  content = re.sub(r"compileSdkVersion\s+.*", "compileSdkVersion 34", content)
-                  content = re.sub(r"minSdkVersion\s+.*", "minSdkVersion 21", content)
-                  content = re.sub(r"targetSdkVersion\s+.*", "targetSdkVersion 34", content)
-
-                  with open(g_file, "w") as f:
-                      f.write(content)
-
-          # Patch AndroidManifest.xml
-          manifest_file = "android/app/src/main/AndroidManifest.xml"
-          if os.path.exists(manifest_file):
-              with open(manifest_file, "r") as f:
-                  m_content = f.read()
-              
-              permissions = """
-      <uses-permission android:name="android.permission.INTERNET"/>
-      <uses-permission android:name="android.permission.CAMERA"/>
-      <uses-permission android:name="android.permission.RECORD_AUDIO"/>
-      <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
-      <uses-permission android:name="android.permission.WAKE_LOCK"/>
-      <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
-      <uses-feature android:name="android.hardware.camera" android:required="true"/>
-      <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
-  """
-              if "android.permission.CAMERA" not in m_content:
-                  m_content = re.sub(r"(<manifest[^>]*>)", r"\1" + permissions, m_content, count=1)
-                  with open(manifest_file, "w") as f:
-                      f.write(m_content)
-          '
+      - name: Update Android Permissions
+        run: |
+          cd flutter_app
+          python3 -c "import re; f='android/app/src/main/AndroidManifest.xml'; c=open(f).read(); p='<uses-permission android:name=\"android.permission.INTERNET\"/><uses-permission android:name=\"android.permission.CAMERA\"/><uses-permission android:name=\"android.permission.RECORD_AUDIO\"/><uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\"/><uses-permission android:name=\"android.permission.WAKE_LOCK\"/><uses-permission android:name=\"android.permission.MODIFY_AUDIO_SETTINGS\"/>'; open(f,'w').write(re.sub(r'(<manifest[^>]*>)', r'\1'+p, c, count=1)) if 'android.permission.CAMERA' not in c else None"
 
       - name: Build APK
         run: |

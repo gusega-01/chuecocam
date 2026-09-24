@@ -28,85 +28,11 @@ jobs:
           cd flutter_app
           rm -rf android
           flutter create . --platforms=android --org com.chuecocam
-
-          ls -la android/*.gradle* 2>/dev/null || echo "no root gradle files found yet"
-
-          cat > patch_android.py << 'PYEOF'
-          import os, re
-
-          # 1. Definir compileSdkVersion como variable ext del root, ANTES de que los subproyectos evalúen
-root_gradle = 'android/build.gradle.kts' if os.path.exists('android/build.gradle.kts') else 'android/build.gradle'
-if os.path.exists(root_gradle):
-    with open(root_gradle, 'r') as f:
-        r_content = f.read()
-
-    if 'MARKER_EXT_SDK' not in r_content:
-        if root_gradle.endswith('.kts'):
-            ext_patch = """
-// MARKER_EXT_SDK
-extra["compileSdkVersion"] = 36
-extra["targetSdkVersion"] = 36
-extra["minSdkVersion"] = 21
-"""
-        else:
-            ext_patch = """
-// MARKER_EXT_SDK
-ext {
-    compileSdkVersion = 36
-    targetSdkVersion = 36
-    minSdkVersion = 21
-}
-"""
-       
-        with open(root_gradle, 'w') as f:
-            f.write(ext_patch + '\n' + r_content)
-                 
-          gradle_file = 'android/app/build.gradle.kts' if os.path.exists('android/app/build.gradle.kts') else 'android/app/build.gradle'
-          if os.path.exists(gradle_file):
-              with open(gradle_file, 'r') as f:
-                  content = f.read()
-
-              content = re.sub(r'compileSdk\s*=.*', 'compileSdk = 36', content)
-              content = re.sub(r'minSdk\s*=.*', 'minSdk = 21', content)
-              content = re.sub(r'targetSdk\s*=.*', 'targetSdk = 36', content)
-              content = re.sub(r'ndkVersion\s*=.*', 'ndkVersion = "27.0.12077973"', content)
-
-              content = re.sub(r'compileSdkVersion\s+.*', 'compileSdkVersion 36', content)
-              content = re.sub(r'minSdkVersion\s+.*', 'minSdkVersion 21', content)
-              content = re.sub(r'targetSdkVersion\s+.*', 'targetSdkVersion 36', content)
-
-              with open(gradle_file, 'w') as f:
-                  f.write(content)
-
-          # 3. Permisos en AndroidManifest.xml
-          manifest_file = 'android/app/src/main/AndroidManifest.xml'
-          if os.path.exists(manifest_file):
-              with open(manifest_file, 'r') as f:
-                  m_content = f.read()
-
-              permissions = """
-          <uses-permission android:name="android.permission.INTERNET"/>
-          <uses-permission android:name="android.permission.CAMERA"/>
-          <uses-permission android:name="android.permission.RECORD_AUDIO"/>
-          <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
-          <uses-permission android:name="android.permission.WAKE_LOCK"/>
-          <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
-          <uses-feature android:name="android.hardware.camera" android:required="true"/>
-          <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
-          """
-              if 'android.permission.CAMERA' not in m_content:
-                  m_content = re.sub(r'(<manifest[^>]*>)', r'\1' + permissions, m_content, count=1)
-                  with open(manifest_file, 'w') as f:
-                      f.write(m_content)
-          PYEOF
-
           python3 patch_android.py
 
       - name: Build APK
         run: |
           cd flutter_app
-          echo "--- pubspec.yaml actual ---"
-          cat pubspec.yaml
           rm -f pubspec.lock
           flutter pub get
           flutter build apk --release --no-tree-shake-icons

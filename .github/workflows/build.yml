@@ -47,7 +47,7 @@ jobs:
               afterEvaluate {
                   extensions.findByName("android")?.let { ext ->
                       try {
-                          val method = ext.javaClass.getMethod("setCompileSdkVersion", Int::class.javaPrimitiveType)
+                          val method = ext.javaClass.getMethod("compileSdkVersion", Int::class.javaPrimitiveType)
                           method.invoke(ext, 36)
                       } catch (e: Exception) {
                           // Ignorar si el subproyecto no expone este método

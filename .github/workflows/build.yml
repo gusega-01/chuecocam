@@ -21,14 +21,17 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: '3.24.0'
           channel: 'stable'
 
       - name: Rebuild Android Project & Build APK
         run: |
           cd flutter_app
           flutter create . --platforms=android
+          flutter pub upgrade
           flutter pub get
-          flutter build apk --release
+          flutter build apk --release --no-tree-shake-icons
+        continue-on-error: false
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4

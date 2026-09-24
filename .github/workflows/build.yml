@@ -21,26 +21,26 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: '3.22.3'
           channel: 'stable'
 
-      - name: Rebuild Android Project
+      - name: Rebuild Fresh Android Project
         run: |
-          cd flutter_app
-          flutter create . --platforms=android --org com.chuecocam
-
-      - name: Update Gradle Android Config
-        run: |
-          cd flutter_app
+          # 1. Crear proyecto nuevo con estructura compatible
+          flutter create temp_app --platforms=android --org com.chuecocam
+          
+          # 2. Copiar el código y dependencias del usuario a la app nueva
+          cp -r flutter_app/lib temp_app/
+          cp flutter_app/pubspec.yaml temp_app/
+          
+          # 3. Parchamos compileSdk, minSdk y permisos en la app limpia
+          cd temp_app
           python3 -c "import glob, re; [open(f, 'w').write(re.sub(r'(compileSdk|targetSdk)\s*(=|\s)\s*\d+', r'\1 \2 34', re.sub(r'minSdk\s*(=|\s)\s*\d+', 'minSdk 21', open(f).read()))) for f in glob.glob('android/app/build.gradle*')]"
-
-      - name: Update Android Permissions
-        run: |
-          cd flutter_app
           python3 -c "import re; f='android/app/src/main/AndroidManifest.xml'; c=open(f).read(); p='<uses-permission android:name=\"android.permission.INTERNET\"/><uses-permission android:name=\"android.permission.CAMERA\"/><uses-permission android:name=\"android.permission.RECORD_AUDIO\"/><uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\"/><uses-permission android:name=\"android.permission.WAKE_LOCK\"/><uses-permission android:name=\"android.permission.MODIFY_AUDIO_SETTINGS\"/>'; open(f,'w').write(re.sub(r'(<manifest[^>]*>)', r'\1'+p, c, count=1)) if 'android.permission.CAMERA' not in c else None"
 
       - name: Build APK
         run: |
-          cd flutter_app
+          cd temp_app
           flutter pub get
           flutter build apk --release --no-tree-shake-icons
 
@@ -48,4 +48,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: app-release
-          path: flutter_app/build/app/outputs/flutter-apk/app-release.apk
+          path: temp_app/build/app/outputs/flutter-apk/app-release.apk

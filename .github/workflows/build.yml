@@ -29,9 +29,49 @@ jobs:
           rm -rf android
           flutter create . --platforms=android --org com.chuecocam
 
+          ls -la android/*.gradle* 2>/dev/null || echo "no root gradle files found yet"
+
           cat > patch_android.py << 'PYEOF'
           import os, re
 
+          # 1. Forzar compileSdk 36 globalmente detectando .kts vs Groovy
+          root_gradle = 'android/build.gradle.kts' if os.path.exists('android/build.gradle.kts') else 'android/build.gradle'
+          if os.path.exists(root_gradle):
+              with open(root_gradle, 'r') as f:
+                  r_content = f.read()
+
+              if 'subprojects' not in r_content:
+                  if root_gradle.endswith('.kts'):
+                      subproject_patch = """
+          subprojects {
+              afterEvaluate {
+                  extensions.findByName("android")?.let { ext ->
+                      try {
+                          val method = ext.javaClass.getMethod("setCompileSdkVersion", Int::class.javaPrimitiveType)
+                          method.invoke(ext, 36)
+                      } catch (e: Exception) {
+                          // Ignorar si el subproyecto no expone este método
+                      }
+                  }
+              }
+          }
+          """
+                  else:
+                      subproject_patch = """
+          subprojects {
+              afterEvaluate { project ->
+                  if (project.hasProperty('android')) {
+                      project.android {
+                          compileSdkVersion 36
+                      }
+                  }
+              }
+          }
+          """
+                  with open(root_gradle, 'a') as f:
+                      f.write(subproject_patch)
+
+          # 2. Patch del app/build.gradle o app/build.gradle.kts
           gradle_file = 'android/app/build.gradle.kts' if os.path.exists('android/app/build.gradle.kts') else 'android/app/build.gradle'
           if os.path.exists(gradle_file):
               with open(gradle_file, 'r') as f:
@@ -49,6 +89,7 @@ jobs:
               with open(gradle_file, 'w') as f:
                   f.write(content)
 
+          # 3. Permisos en AndroidManifest.xml
           manifest_file = 'android/app/src/main/AndroidManifest.xml'
           if os.path.exists(manifest_file):
               with open(manifest_file, 'r') as f:
@@ -75,6 +116,9 @@ jobs:
       - name: Build APK
         run: |
           cd flutter_app
+          echo "--- pubspec.yaml actual ---"
+          cat pubspec.yaml
+          rm -f pubspec.lock
           flutter pub get
           flutter build apk --release --no-tree-shake-icons
 

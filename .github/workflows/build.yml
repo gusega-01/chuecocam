@@ -35,6 +35,7 @@ jobs:
           cd flutter_app
           rm -f pubspec.lock
           flutter pub get
+          python3 patch_pubcache.py
           flutter build apk --release --no-tree-shake-icons
 
       - name: Upload APK Artifact

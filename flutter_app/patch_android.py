@@ -103,3 +103,60 @@ else:
     print(f"[WARN] no se encontro {manifest_file}")
 
 print("Patch de Android completado.")
+
+# 4. Reglas de ProGuard/R8 para mobile_scanner + ML Kit + CameraX.
+#    R8 en modo release puede eliminar clases de ML Kit que la propia
+#    libreria carga por reflexion, provocando el crash:
+#    "Attempt to invoke virtual method 'java.lang.Class
+#    java.lang.Object.getClass()' on a null object reference"
+#    al intentar iniciar la camara del escaner de QR.
+proguard_file = "android/app/proguard-rules.pro"
+proguard_rules = """# ML Kit (usado por mobile_scanner para leer codigos QR)
+-keep class com.google.mlkit.** { *; }
+-keep class com.google.android.gms.internal.mlkit_** { *; }
+-dontwarn com.google.mlkit.**
+
+# CameraX
+-keep class androidx.camera.** { *; }
+-dontwarn androidx.camera.**
+
+# mobile_scanner
+-keep class dev.steenbakker.mobile_scanner.** { *; }
+"""
+with open(proguard_file, "w") as f:
+    f.write(proguard_rules)
+print(f"[OK] creado {proguard_file} con reglas de ProGuard/R8")
+
+if os.path.exists(gradle_file):
+    with open(gradle_file, "r") as f:
+        g_content = f.read()
+
+    if "proguard-rules.pro" not in g_content:
+        if gradle_file.endswith(".kts"):
+            g_content = re.sub(
+                r"(release\s*\{)",
+                r"""\1
+            isMinifyEnabled = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )""",
+                g_content,
+                count=1,
+            )
+        else:
+            g_content = re.sub(
+                r"(release\s*\{)",
+                r"""\1
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'""",
+                g_content,
+                count=1,
+            )
+        with open(gradle_file, "w") as f:
+            f.write(g_content)
+        print(f"[OK] {gradle_file}: minificacion + proguard-rules.pro conectados")
+    else:
+        print(f"[SKIP] {gradle_file} ya referenciaba proguard-rules.pro")
+else:
+    print(f"[WARN] no se encontro {gradle_file} para conectar proguard-rules.pro")

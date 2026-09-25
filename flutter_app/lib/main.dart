@@ -38,7 +38,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   // Cambia este valor por defecto por la URL de tu servidor ya desplegado.
   final _serverController =
-      TextEditingController(text: 'https://https://chuecocam-1.onrender.com');
+      TextEditingController(text: 'https://chuecocam-1.onrender.com');
 
   Future<void> _goHost() async {
     await [Permission.camera, Permission.microphone].request();

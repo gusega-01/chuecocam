@@ -58,26 +58,36 @@ class _HomeScreenState extends State<HomeScreen> {
       context,
       MaterialPageRoute(builder: (_) => const QrScanScreen()),
     );
-    if (result != null) {
-      try {
-        final data = jsonDecode(result);
-        if (!mounted) return;
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ViewerScreen(
-              serverUrl: data['server'],
-              sessionId: data['sessionId'],
-            ),
-          ),
-        );
-      } catch (_) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Código QR no válido')),
-          );
-        }
+    if (result == null) return; // el usuario volvió sin escanear nada
+    try {
+      final data = jsonDecode(result);
+      final server = data['server'];
+      final sessionId = data['sessionId'];
+      if (server == null || sessionId == null) {
+        throw const FormatException('Faltan los campos server/sessionId en el QR');
       }
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ViewerScreen(serverUrl: server, sessionId: sessionId),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Código QR no reconocido'),
+          content: Text('Contenido leído:\n"$result"\n\nError: $e'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
     }
   }
 
@@ -129,6 +139,7 @@ class QrScanScreen extends StatefulWidget {
 
 class _QrScanScreenState extends State<QrScanScreen> {
   PermissionStatus? _cameraStatus;
+  bool _handled = false;
 
   @override
   void initState() {
@@ -208,8 +219,10 @@ class _QrScanScreenState extends State<QrScanScreen> {
         );
       },
       onDetect: (capture) {
+        if (_handled) return; // evita popear más de una vez con el mismo QR en cámara
         final barcodes = capture.barcodes;
         if (barcodes.isNotEmpty && barcodes.first.rawValue != null) {
+          _handled = true;
           Navigator.pop(context, barcodes.first.rawValue);
         }
       },

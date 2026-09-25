@@ -189,7 +189,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
     // Permiso concedido: mostramos el escáner, con errorBuilder para ver
     // el motivo real si la cámara falla al iniciar por otra causa.
     return MobileScanner(
-      errorBuilder: (context, error) {
+      errorBuilder: (context, error, child) {
         return Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -199,7 +199,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
                 const Icon(Icons.error_outline, size: 56, color: Colors.redAccent),
                 const SizedBox(height: 16),
                 Text(
-                  'Error al iniciar la cámara:\n${error.errorCode}\n${error.errorDetails?.message ?? ''}',
+                  'Error al iniciar la cámara:\n${error.toString()}',
                   textAlign: TextAlign.center,
                 ),
               ],
